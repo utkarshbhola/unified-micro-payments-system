@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from models import SendRequest, BalanceRequest
-#from db import supabase   or your db logic
+#from db import supabase   #or your db logic
 
 router = APIRouter()
 
@@ -28,14 +28,14 @@ def send_money(req: SendRequest):
     return {"message": f"Payment {status}", "method_used": method}
 
 
-@router.post("/balance")
-def get_balance(req: BalanceRequest):
+#@router.post("/balance")
+#def get_balance(req: BalanceRequest):
     # Placeholder logic — ideally pull from Supabase `wallets` table
-    wallet_data = supabase.table("wallets").select("balance").eq("user_id", req.user_id).single().execute()
-    return {"balance": wallet_data.data["balance"]}
+    #wallet_data = supabase.table("wallets").select("balance").eq("user_id", req.user_id).single().execute()
+    #return {"balance": wallet_data.data["balance"]}##
 
 
-@router.get("/transactions/{user_id}")
-def get_transactions(user_id: str):
-    res = supabase.table("transactions").select("*").or_(f"payer_id.eq.{user_id},payee_id.eq.{user_id}").execute()
-    return {"transactions": res.data}
+#@router.get("/transactions/{user_id}")
+#def get_transactions(user_id: str):
+#    res = supabase.table("transactions").select("*").or_(f"payer_id.eq.{user_id},payee_id.eq.{user_id}").execute()
+#    return {"transactions": res.data}

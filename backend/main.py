@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator, validator
 from typing import Optional,List
 from datetime import datetime
 from routes import transactions
@@ -33,10 +33,16 @@ transactions = []  # list of transaction records
 # Pydantic Models
 # ----------------------------
 
-class   SendMoneyRequest(BaseModel):
+class SendMoneyRequest(BaseModel):
     payer_id: str
     payee_id: str
-    amount: float
+    amount: float = Field(..., gt=0)
+
+    @field_validator('payer_id', 'payee_id')
+    def check_upi_format(cls, v):
+        if '@' not in v:
+            raise ValueError("Invalid UPI ID format")
+        return v
 
 
 class Transaction(BaseModel):
@@ -44,7 +50,6 @@ class Transaction(BaseModel):
     receiver_upi: str
     amount: float
     timestamp: str
-
 
 # ----------------------------
 # Routes
@@ -67,8 +72,8 @@ def get_balance(upi_id: str):
 @app.post("/send")
 def send_money(request: SendMoneyRequest):
     print("Received request:", request)
-    sender = users.get(request.sender_upi)
-    receiver = users.get(request.receiver_upi)
+    sender = users.get(request.payer_id)
+    receiver = users.get(request.payee_id)
 
     if not sender or not receiver:
         raise HTTPException(status_code=404, detail="Invalid sender or receiver")
@@ -81,12 +86,12 @@ def send_money(request: SendMoneyRequest):
     receiver["balance"] += request.amount
 
     txn = Transaction(
-        sender_upi=request.sender_upi,
-        receiver_upi=request.receiver_upi,
+        sender_upi=request.payer_id,
+        receiver_upi=request.payee_id,
         amount=request.amount,
         timestamp=datetime.now().isoformat()
     )
-    transactions.append(txn.dict())
+    transactions.append(txn.model_dump())
 
     return {"message": "Transfer successful", "transaction": txn}
 
