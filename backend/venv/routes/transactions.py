@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from models import SendRequest, BalanceRequest
-from db import supabase  # or your db logic
+#from db import supabase   or your db logic
 
 router = APIRouter()
 
@@ -23,7 +23,7 @@ def send_money(req: SendRequest):
         "method": method
     }
 
-    result = supabase.table("transactions").insert(data).execute()
+    #result = supabase.table("transactions").insert(data).execute()
 
     return {"message": f"Payment {status}", "method_used": method}
 

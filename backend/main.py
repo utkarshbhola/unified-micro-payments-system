@@ -33,9 +33,9 @@ transactions = []  # list of transaction records
 # Pydantic Models
 # ----------------------------
 
-class SendMoneyRequest(BaseModel):
-    sender_upi: str
-    receiver_upi: str
+class   SendMoneyRequest(BaseModel):
+    payer_id: str
+    payee_id: str
     amount: float
 
 
@@ -57,6 +57,7 @@ def welcome():
 
 @app.get("/balance/{upi_id}")
 def get_balance(upi_id: str):
+
     user = users.get(upi_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -65,6 +66,7 @@ def get_balance(upi_id: str):
 
 @app.post("/send")
 def send_money(request: SendMoneyRequest):
+    print("Received request:", request)
     sender = users.get(request.sender_upi)
     receiver = users.get(request.receiver_upi)
 

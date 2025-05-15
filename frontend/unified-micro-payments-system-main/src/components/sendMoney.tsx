@@ -7,22 +7,33 @@ const SendMoney: React.FC = () => {
   const [message, setMessage] = useState('');
 
   const handleSend = async () => {
-    const res = await fetch('http://localhost:8000/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sender_upi: senderUPI,
-        receiver_upi: receiverUPI,
-        amount: amount,
-      }),
-    });
+    try{
+      const res = await fetch('http://localhost:8000/send', {
+        method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+         payer_id: senderUPI,
+          payee_id: receiverUPI,
+          amount: amount,
+        }),
+      });
 
-    const data = await res.json();
-    if (res.ok) {
-      setMessage('✅ Money sent successfully!');
-    } else {
-      setMessage(`❌ Error: ${data.detail}`);
+      const data = await res.json();
+      console.log('Response:', data);
+
+      if (res.ok) {
+        setMessage('✅ Money sent successfully!');
+      } else {
+        setMessage(`❌ Error: ${JSON.stringify(data.detail)}`);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setMessage('❌ Error: Unable to send money. Please try again.');
+      return;
+
     }
+    
+    
   };
 
   return (
