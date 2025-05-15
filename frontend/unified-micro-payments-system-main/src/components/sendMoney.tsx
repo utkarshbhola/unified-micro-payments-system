@@ -21,6 +21,14 @@ const SendMoney: React.FC = () => {
       const data = await res.json();
       console.log('Response:', data);
 
+      if (!senderUPI || !receiverUPI || amount <= 0) {
+  setMessage("❌ Please fill all fields with valid data.");
+  return;
+}
+if (senderUPI === receiverUPI) {
+  setMessage("❌ Sender and receiver cannot be the same.");
+  return;
+}
       if (res.ok) {
         setMessage('✅ Money sent successfully!');
       } else {
