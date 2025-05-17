@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { supabase } from './supabase-client'; // adjust the path as needed
 
 const SendMoney: React.FC = () => {
   const [senderUPI, setSenderUPI] = useState('');
@@ -7,12 +8,52 @@ const SendMoney: React.FC = () => {
   const [message, setMessage] = useState('');
 
   const handleSend = async () => {
-    try{
+    try {
+      // Basic input validation
+      if (!senderUPI || !receiverUPI || amount <= 0) {
+        setMessage('❌ Please fill all fields with valid data.');
+        return;
+      }
+
+      if (senderUPI === receiverUPI) {
+        setMessage('❌ Sender and receiver cannot be the same.');
+        return;
+      }
+
+      // ✅ Check if both users exist
+      const { data: sender, error: senderError } = await supabase
+        .from('users')
+        .select('upi_id, balance')
+        .eq('upi_id', senderUPI)
+        .single();
+
+      const { data: receiver, error: receiverError } = await supabase
+        .from('users')
+        .select('upi_id')
+        .eq('upi_id', receiverUPI)
+        .single();
+
+      if (senderError || !sender) {
+        setMessage('❌ Sender UPI not found.');
+        return;
+      }
+
+      if (receiverError || !receiver) {
+        setMessage('❌ Receiver UPI not found.');
+        return;
+      }
+
+      if (sender.balance < amount) {
+        setMessage('❌ Insufficient balance.');
+        return;
+      }
+
+      // 🧾 Call your backend to handle money transfer
       const res = await fetch('http://localhost:8000/send', {
         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-         payer_id: senderUPI,
+          payer_id: senderUPI,
           payee_id: receiverUPI,
           amount: amount,
         }),
@@ -21,27 +62,33 @@ const SendMoney: React.FC = () => {
       const data = await res.json();
       console.log('Response:', data);
 
-      if (!senderUPI || !receiverUPI || amount <= 0) {
-  setMessage("❌ Please fill all fields with valid data.");
-  return;
-}
-if (senderUPI === receiverUPI) {
-  setMessage("❌ Sender and receiver cannot be the same.");
-  return;
-}
-      if (res.ok) {
-        setMessage('✅ Money sent successfully!');
-      } else {
+      if (!res.ok) {
         setMessage(`❌ Error: ${JSON.stringify(data.detail)}`);
+        return;
       }
-    } catch (error) {
-      console.error('Error:', error);
-      setMessage('❌ Error: Unable to send money. Please try again.');
-      return;
 
+      // 💾 Log transaction in Supabase
+      const { error: insertError } = await supabase.from('transactions').insert([
+        {
+          payer_id: senderUPI,
+          payee_id: receiverUPI,
+          amount: amount,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+
+      if (insertError) {
+        console.error('Supabase error:', insertError);
+        setMessage(`⚠️ Money sent but failed to log transaction: ${insertError.message}`);
+        return;
+      }
+
+      // ✅ Success message
+      setMessage('✅ Money sent and recorded successfully!');
+    } catch (error) {
+      console.error('Unexpected Error:', error);
+      setMessage('❌ Error: Unable to send money. Please try again.');
     }
-    
-    
   };
 
   return (
@@ -78,5 +125,3 @@ if (senderUPI === receiverUPI) {
 };
 
 export default SendMoney;
-
-
