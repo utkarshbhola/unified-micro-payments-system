@@ -44,8 +44,8 @@ def welcome():
 
 @app.get("/balance/{upi_id}")
 def get_balance(upi_id: str):
-    response = supabase.table("users").select("balance").eq("upi_id", upi_id).single().execute()
-    user = response.data
+    response = supabase.table("users").select("balance").eq("upi_id", upi_id).execute()
+    user = response.data[0]
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -58,14 +58,14 @@ def send_money(request: SendMoneyRequest):
     try:
         print("Handling send request...")
 
-        sender_response = supabase.table("users").select("*").eq("upi_id", request.payer_id).single().execute()
+        sender_response = supabase.table("users").select("*").eq("upi_id", request.payer_id).execute()
         sender = sender_response.data
         if not sender:
             raise HTTPException(status_code=404, detail="Sender not found")
         
 
     # Step 2: Fetch receiver
-        receiver_response = supabase.table("users").select("*").eq("upi_id", request.payee_id).single().execute()
+        receiver_response = supabase.table("users").select("*").eq("upi_id", request.payee_id).execute()
         receiver = receiver_response.data
         if not receiver:
             raise HTTPException(status_code=404, detail="Receiver not found")
@@ -96,7 +96,7 @@ def send_money(request: SendMoneyRequest):
             "timestamp": datetime.utcnow().isoformat()
         }
 
-        txn_insert = supabase.table("transactions").insert(txn).execute()
+        txn_insert = supabase.table("transactions").insert(txn).single().execute()
         if txn_insert.error:
             raise HTTPException(status_code=500, detail="Transaction logging failed")
 
