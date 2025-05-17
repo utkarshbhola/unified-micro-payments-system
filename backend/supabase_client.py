@@ -1,3 +1,6 @@
+# Make sure you have installed the 'supabase' Python package:
+# pip install supabase
+
 from supabase import create_client, Client
 
 SUPABASE_URL = 'https://txuoicvalrtadkrxmqvr.supabase.co'

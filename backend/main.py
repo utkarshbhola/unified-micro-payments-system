@@ -14,11 +14,10 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Replace * with your frontend URL in production
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
 # ----------------------------
 # Pydantic Models
 # ----------------------------
@@ -56,55 +55,61 @@ def get_balance(upi_id: str):
 
 @app.post("/send")
 def send_money(request: SendMoneyRequest):
-    # Step 1: Fetch sender
-    sender_response = supabase.table("users").select("*").eq("upi_id", request.payer_id).single().execute()
-    sender = sender_response.data
-    if not sender:
-        raise HTTPException(status_code=404, detail="Sender not found")
+    try:
+        print("Handling send request...")
+
+        sender_response = supabase.table("users").select("*").eq("upi_id", request.payer_id).single().execute()
+        sender = sender_response.data
+        if not sender:
+            raise HTTPException(status_code=404, detail="Sender not found")
+        
 
     # Step 2: Fetch receiver
-    receiver_response = supabase.table("users").select("*").eq("upi_id", request.payee_id).single().execute()
-    receiver = receiver_response.data
-    if not receiver:
-        raise HTTPException(status_code=404, detail="Receiver not found")
+        receiver_response = supabase.table("users").select("*").eq("upi_id", request.payee_id).single().execute()
+        receiver = receiver_response.data
+        if not receiver:
+            raise HTTPException(status_code=404, detail="Receiver not found")
 
-    # Step 3: Check balance
-    if sender["balance"] < request.amount:
-        raise HTTPException(status_code=400, detail="Insufficient balance")
+        # Step 3: Check balance
+        if sender["balance"] < request.amount:
+            raise HTTPException(status_code=400, detail="Insufficient balance")
 
-    # Step 4: Update balances
-    new_sender_balance = sender["balance"] - request.amount
-    new_receiver_balance = receiver["balance"] + request.amount
+        # Step 4: Update balances
+        new_sender_balance = sender["balance"] - request.amount
+        new_receiver_balance = receiver["balance"] + request.amount
 
-    # Step 5: Update sender
-    sender_update = supabase.table("users").update({"balance": new_sender_balance}).eq("upi_id", request.payer_id).execute()
-    if sender_update.error:
-        raise HTTPException(status_code=500, detail="Failed to update sender balance")
+        # Step 5: Update sender
+        sender_update = supabase.table("users").update({"balance": new_sender_balance}).eq("upi_id", request.payer_id).execute()
+        if sender_update.error:
+            raise HTTPException(status_code=500, detail="Failed to update sender balance")
 
-    # Step 6: Update receiver
-    receiver_update = supabase.table("users").update({"balance": new_receiver_balance}).eq("upi_id", request.payee_id).execute()
-    if receiver_update.error:
-        raise HTTPException(status_code=500, detail="Failed to update receiver balance")
+        # Step 6: Update receiver
+        receiver_update = supabase.table("users").update({"balance": new_receiver_balance}).eq("upi_id", request.payee_id).execute()
+        if receiver_update.error:
+            raise HTTPException(status_code=500, detail="Failed to update receiver balance")
 
-    # Step 7: Log transaction
-    txn = {
-        "payer_id": request.payer_id,
-        "payee_id": request.payee_id,
-        "amount": request.amount,
-        "timestamp": datetime.utcnow().isoformat()
-    }
+        # Step 7: Log transaction
+        txn = {
+            "payer_id": request.payer_id,
+            "payee_id": request.payee_id,
+            "amount": request.amount,
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
-    txn_insert = supabase.table("transactions").insert(txn).execute()
-    if txn_insert.error:
-        raise HTTPException(status_code=500, detail="Transaction logging failed")
+        txn_insert = supabase.table("transactions").insert(txn).execute()
+        if txn_insert.error:
+            raise HTTPException(status_code=500, detail="Transaction logging failed")
 
-    return {"message": "✅ Transfer successful", "transaction": txn}
+        return {"message": "✅ Transfer successful", "transaction": txn}
+    except Exception as e:
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 
 @app.get("/transactions/{upi_id}")
 def get_transactions(upi_id: str):
     response = supabase.table("transactions").select("*").or_(
-        f"payer_id.eq.{upi_id},payee_upi.eq.{upi_id}"
+        f"payer_id.eq.{upi_id},payee_id.eq.{upi_id}"
     ).order("timestamp", desc=True).execute()
 
     if response.error:
