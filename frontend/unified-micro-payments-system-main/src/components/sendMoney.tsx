@@ -49,7 +49,7 @@ const SendMoney: React.FC = () => {
       }
 
       // 🧾 Call your backend to handle money transfer
-      const res = await fetch('http://localhost:8800/send', {
+      const res = await fetch('http://localhost:8000/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
