@@ -58,18 +58,18 @@ def send_money(request: SendMoneyRequest):
     try:
         print("Handling send request...")
 
-        sender_response = supabase.table("users").select("*").eq("upi_id", request.payer_id).execute()
+        sender_response = supabase.table("users").select("*").eq("upi_id", request.payer_id).single().execute()
         sender = sender_response.data
         if not sender:
             raise HTTPException(status_code=404, detail="Sender not found")
+        # print(sender)
         
-
     # Step 2: Fetch receiver
-        receiver_response = supabase.table("users").select("*").eq("upi_id", request.payee_id).execute()
+        receiver_response = supabase.table("users").select("*").eq("upi_id", request.payee_id).single().execute()
         receiver = receiver_response.data
         if not receiver:
             raise HTTPException(status_code=404, detail="Receiver not found")
-
+        
         # Step 3: Check balance
         if sender["balance"] < request.amount:
             raise HTTPException(status_code=400, detail="Insufficient balance")
@@ -77,16 +77,19 @@ def send_money(request: SendMoneyRequest):
         # Step 4: Update balances
         new_sender_balance = sender["balance"] - request.amount
         new_receiver_balance = receiver["balance"] + request.amount
+        # print(new_sender_balance, new_receiver_balance)
+
 
         # Step 5: Update sender
         sender_update = supabase.table("users").update({"balance": new_sender_balance}).eq("upi_id", request.payer_id).execute()
-        if sender_update.error:
-            raise HTTPException(status_code=500, detail="Failed to update sender balance")
+        # if sender_update.error:
+        #     raise HTTPException(status_code=500, detail="Failed to update sender balance")
 
+        print(sender_update)
         # Step 6: Update receiver
         receiver_update = supabase.table("users").update({"balance": new_receiver_balance}).eq("upi_id", request.payee_id).execute()
-        if receiver_update.error:
-            raise HTTPException(status_code=500, detail="Failed to update receiver balance")
+        # if receiver_update.error:
+        #     raise HTTPException(status_code=500, detail="Failed to update receiver balance")
 
         # Step 7: Log transaction
         txn = {
@@ -96,9 +99,9 @@ def send_money(request: SendMoneyRequest):
             "timestamp": datetime.utcnow().isoformat()
         }
 
-        txn_insert = supabase.table("transactions").insert(txn).single().execute()
-        if txn_insert.error:
-            raise HTTPException(status_code=500, detail="Transaction logging failed")
+        txn_insert = supabase.table("transactions").insert(txn).execute()
+        # if txn_insert.error:
+        #     raise HTTPException(status_code=500, detail="Transaction logging failed")
 
         return {"message": "✅ Transfer successful", "transaction": txn}
     except Exception as e:
